@@ -1,0 +1,44 @@
+To remove expired items I am thinking to use a scheduled job(sweeper thread) to wake up after a certain amount of time and clear up the keys that have expired.
+So I have chosen Java as it provides good support for multi-threaded systems.
+
+Initial Ideas (This will change as I think more and if I encounter race conditions)
+
+I want to make the data structure thread safe.
+
+I am thinking of having 3 data structures inside the TTL map class.
+One maps key to value
+One maps key to expire timestamp
+One min heap based on expire timestamps also storing the key.
+
+I am thinking of the sweeper thread to acquire locks to these data structures and make updates.
+Same goes for put method. It acquires these locks and makes updates.
+For get the one should acquire a read lock on these resources.
+
+PUT(key, value, TTL)
+    // acquire write lock
+    if key exists:
+        register in the 3 resources
+    else:
+        if size == MAX_SIZE:
+            find key to be removed using heap
+            remove the key from the data structures(DSs)
+            register new key in the DSs
+        else:
+            register new key in the DSs
+    // release write lock
+
+GET(key)
+    // acquire read lock
+    if key exists :
+        if expired :
+            return NULL
+        else:
+            return value
+    else
+        return NULL
+    // release read lock
+
+Sweeper Thread()
+    // acquire write lock
+    removes expired items. Keep popping from the top of heap till non expired item comes or heap size becomes 0
+    // release write lock
