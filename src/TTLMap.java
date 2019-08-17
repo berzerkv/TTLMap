@@ -11,7 +11,7 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
     private HashMap<K,V> keyToValue = new HashMap<K, V>(); // maps key to value
-    private HashMap<K,Integer> keyToExpireTime = new HashMap<K, Integer>(); // maps key to expire time
+    private HashMap<K, Long> keyToExpireTime = new HashMap<K, Long>(); // maps key to expire time
     private Comparator<HeapEntry> heapComparator = new Comparator<HeapEntry>() {
         @Override
         public int compare(HeapEntry x, HeapEntry y) {
@@ -46,12 +46,9 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
             if(keyToValue.containsKey(key)){ // if key already present
                 long oldTimestamp = keyToExpireTime.get(key);
                 keyToValue.put(key,value);
-                keyToExpireTime.put(key,ttl);
-                System.out.println("contains key");
-                System.out.println(entries.toString());
+                keyToExpireTime.put(key,currentTimestamp+ttl);
                 entries.remove(new HeapEntry(oldTimestamp,key));
                 entries.add(new HeapEntry(currentTimestamp+ttl,key));
-                System.out.println(entries.toString());
             }
             else{
                 if(currentSize == maxSize){ // if max size reached remove first element from the set
@@ -61,7 +58,7 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
                     currentSize--;
                 }
                 keyToValue.put(key,value);
-                keyToExpireTime.put(key,ttl);
+                keyToExpireTime.put(key,currentTimestamp+ttl);
                 entries.add(new HeapEntry(currentTimestamp+ttl,key));
                 currentSize++;
             }
@@ -117,7 +114,6 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
 
         private void sweep() {
             long currentTimestamp = (long)((new Date().getTime())/1000);
-            System.out.println(currentTimestamp);
             writeLock.lock();
             try{
                 // removes elements from the start of the set which have expired
@@ -138,9 +134,7 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
                 e.printStackTrace();
             }
             finally {
-                System.out.println("Current Size " + currentSize);
                 long endTimestamp = (long)((new Date().getTime())/1000);
-                System.out.println(endTimestamp);
                 writeLock.unlock();
             }
         }
@@ -151,7 +145,6 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
         TTLMap<Integer,Integer> tmap = new TTLMap<Integer, Integer>();
         System.out.println(tmap.getCurrentSize());
         tmap.put(1,4,8);
-        System.out.println(tmap.getCurrentSize());
         try {
             Thread.sleep(3000);
         } catch (InterruptedException e) {
