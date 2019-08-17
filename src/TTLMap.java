@@ -42,7 +42,6 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
         long currentTimestamp = (long)((new Date().getTime())/1000);
         writeLock.lock(); // acquires write lock
         try{
-            System.out.println("put key : " + key);
             if(keyToValue.containsKey(key)){ // if key already present
                 long oldTimestamp = keyToExpireTime.get(key);
                 keyToValue.put(key,value);
@@ -135,6 +134,7 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
             }
             finally {
                 long endTimestamp = (long)((new Date().getTime())/1000);
+                System.out.println("Sweeper Endtime: " + endTimestamp + " Current Size: " + currentSize);
                 writeLock.unlock();
             }
         }
@@ -144,13 +144,13 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
         // driver code to test ttl map
         TTLMap<Integer,Integer> tmap = new TTLMap<Integer, Integer>();
         System.out.println(tmap.getCurrentSize());
-        tmap.put(1,4,8);
+        tmap.put(1,4,14);
         try {
             Thread.sleep(3000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        tmap.put(1,5,7);
+        tmap.put(5,5,7);
         System.out.println(tmap.getCurrentSize());
     }
 }
