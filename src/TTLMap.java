@@ -7,11 +7,6 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
 
     private final int maxSize = 100000;
     private int currentSize = 0;
-
-    public int getCurrentSize() {
-        return currentSize;
-    }
-
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
@@ -32,11 +27,15 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
 //    PriorityQueue<HeapEntry> queue = new PriorityQueue<HeapEntry>(heapComparator);
     TreeSet<HeapEntry> entries = new TreeSet<HeapEntry>(heapComparator);
 
-    public void TTLMap(){
+    public TTLMap(){
+
         initialize();
     }
-
+    public int getCurrentSize() {
+        return currentSize;
+    }
     void initialize() {
+
         new SweeperThread().start();
     }
 
@@ -112,6 +111,7 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
         private void sweep() {
             long currentTimestamp = (long)((new Date().getTime())/1000);
             writeLock.lock();
+
             try{
                 Iterator<HeapEntry> it = entries.iterator();
                 while(it.hasNext()){
@@ -130,6 +130,7 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
                 e.printStackTrace();
             }
             finally {
+                System.out.println("Current Size " + currentSize);
                 writeLock.unlock();
             }
         }
@@ -137,13 +138,15 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
 
     public static void main(String[] args){
         TTLMap<Integer,Integer> tmap = new TTLMap<Integer, Integer>();
+        System.out.println(tmap.getCurrentSize());
         tmap.put(1,4,5);
         System.out.println(tmap.getCurrentSize());
         try {
-            Thread.sleep(7000);
+            Thread.sleep(4000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        tmap.put(2,4,5);
         System.out.println(tmap.getCurrentSize());
 
     }
