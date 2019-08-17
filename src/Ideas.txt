@@ -42,3 +42,8 @@ Sweeper Thread()
     // acquire write lock
     removes expired items. Keep popping from the top of heap till non expired item comes or heap size becomes 0
     // release write lock
+
+Instead of having a single lock on the DSs I am thinking of having a read write lock. So multiple reads can happen at the same time.
+Java already has a read write lock implementation named ReentrantReadWriteLock.
+Also instead of using a priority queue I m now using an ordered set. This changes was required as I need to remove elements from the middle of the heap.
+And I think using an ordered set is a nice solution to this problem.

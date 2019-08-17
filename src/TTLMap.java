@@ -1,24 +1,93 @@
-public class TTLMap implements ITTLMap {
+import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+public class TTLMap<K,V> implements ITTLMap<K,V> {
 
     private final int maxSize = 100000;
     private int currentSize = 0;
-    // 2 hash maps and 1 min heap declaration
+
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final Lock readLock = readWriteLock.readLock();
+    private final Lock writeLock = readWriteLock.writeLock();
+    private HashMap<K,V> keyToValue = new HashMap<K, V>();
+    private HashMap<K,Integer> keyToExpireTime = new HashMap<K, Integer>();
+    private Comparator<HeapEntry> heapComparator = new Comparator<HeapEntry>() {
+        @Override
+        public int compare(HeapEntry x, HeapEntry y) {
+            if (x.getTimestamp() < y.getTimestamp()) {
+                return -1;
+            }
+            if (x.getTimestamp() > y.getTimestamp()) {
+                return 1;
+            }
+            return 0;
+        }
+    };
+//    PriorityQueue<HeapEntry> queue = new PriorityQueue<HeapEntry>(heapComparator);
+    TreeSet<HeapEntry> entries = new TreeSet<HeapEntry>(heapComparator);
 
     public void TTLMap(){
-
+        initialize();
+    }
+    void initialize() {
+        new SweeperThread().start();
     }
 
     @Override
-    public void put(int key, int value, int ttl) {
-
+    public void put(K key, V value, int ttl) {
+        long currentTimestamp = new Date().getTime();
+        writeLock.lock();
+        try{
+            if(keyToValue.containsKey(key)){
+                long oldTimestamp = keyToExpireTime.get(key);
+                keyToValue.put(key,value);
+                keyToExpireTime.put(key,ttl);
+                entries.remove(new HeapEntry(oldTimestamp,key));
+                entries.add(new HeapEntry(currentTimestamp+ttl,key));
+            }
+            else{
+                if(currentSize == maxSize){
+                    entries.pollFirst();
+                }
+                entries.add(new HeapEntry(currentTimestamp+ttl,key));
+            }
+        }
+        finally {
+            writeLock.unlock();
+        }
     }
 
     @Override
-    public int get(int key) {
-        return 0;
+    public V get(K key) {
+        readLock.lock();
+        try {
+            V ret = keyToValue.get(key);
+            return ret;
+        }
+        finally {
+            readLock.unlock();
+        }
     }
 
-    class SweeperThread extends Thread {
+    public class HeapEntry{
+        private long timestamp;
+        private K key;
+        public HeapEntry(long timestamp, K key){
+            this.timestamp = timestamp;
+            this.key = key;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+        public K getKey(){
+            return key;
+        }
+    }
+
+    public class SweeperThread extends Thread {
         private int wakeUpTime = 2000;
 
         @Override
@@ -34,7 +103,24 @@ public class TTLMap implements ITTLMap {
         }
 
         private void sweep() {
-
+            long currentTimestamp = new Date().getTime();
+            writeLock.lock();
+            try{
+                Iterator<HeapEntry> it = entries.iterator();
+                while(it.hasNext()){
+                    if(it.next().getTimestamp() <= currentTimestamp){
+                        it.remove();
+                    }
+                    else
+                        break;
+                }
+            }
+            catch(Exception e){
+                e.printStackTrace();
+            }
+            finally {
+                writeLock.unlock();
+            }
         }
     }
 }
