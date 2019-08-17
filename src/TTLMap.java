@@ -8,6 +8,10 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
     private final int maxSize = 100000;
     private int currentSize = 0;
 
+    public int getCurrentSize() {
+        return currentSize;
+    }
+
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
@@ -31,13 +35,14 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
     public void TTLMap(){
         initialize();
     }
+
     void initialize() {
         new SweeperThread().start();
     }
 
     @Override
     public void put(K key, V value, int ttl) {
-        long currentTimestamp = new Date().getTime();
+        long currentTimestamp = (long)((new Date().getTime())/1000);
         writeLock.lock();
         try{
             if(keyToValue.containsKey(key)){
@@ -50,8 +55,10 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
             else{
                 if(currentSize == maxSize){
                     entries.pollFirst();
+                    currentSize--;
                 }
                 entries.add(new HeapEntry(currentTimestamp+ttl,key));
+                currentSize++;
             }
         }
         finally {
@@ -103,13 +110,17 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
         }
 
         private void sweep() {
-            long currentTimestamp = new Date().getTime();
+            long currentTimestamp = (long)((new Date().getTime())/1000);
             writeLock.lock();
             try{
                 Iterator<HeapEntry> it = entries.iterator();
                 while(it.hasNext()){
-                    if(it.next().getTimestamp() <= currentTimestamp){
+                    HeapEntry h = it.next();
+                    if(h.getTimestamp() <= currentTimestamp){
+                        keyToValue.remove(h.getKey());
+                        keyToExpireTime.remove(h.getKey());
                         it.remove();
+                        currentSize--;
                     }
                     else
                         break;
@@ -122,5 +133,18 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
                 writeLock.unlock();
             }
         }
+    }
+
+    public static void main(String[] args){
+        TTLMap<Integer,Integer> tmap = new TTLMap<Integer, Integer>();
+        tmap.put(1,4,5);
+        System.out.println(tmap.getCurrentSize());
+        try {
+            Thread.sleep(7000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(tmap.getCurrentSize());
+
     }
 }
