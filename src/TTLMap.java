@@ -139,10 +139,22 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
             }
         }
     }
-
+    static class AnotherThread extends Thread{
+        private int wakeUpTime = 2000;
+        public void run() {
+            while (true) {
+                System.out.println("tmap get : " + tmap.get(5));
+                try {
+                    Thread.sleep(wakeUpTime);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    static TTLMap<Integer,Integer> tmap = new TTLMap<Integer, Integer>();
     public static void main(String[] args){
         // driver code to test ttl map
-        TTLMap<Integer,Integer> tmap = new TTLMap<Integer, Integer>();
         System.out.println(tmap.getCurrentSize());
         tmap.put(1,4,14);
         try {
@@ -150,6 +162,8 @@ public class TTLMap<K,V> implements ITTLMap<K,V> {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        AnotherThread at = new AnotherThread();
+        at.start();
         tmap.put(5,5,7);
         System.out.println(tmap.getCurrentSize());
     }
